@@ -171,6 +171,9 @@ window.Innocenti.Check = function (condition, pass, trigger = null) {
             case "Move":
                 game.macros.entities.find(i => i.name === "Move").execute(...pass_arr[i].split(','));
                 break;
+            case "Teleport":
+                game.macros.entities.find(i => i.name === "TeleportToToken").execute(...pass_arr[i].split(','));
+                break;
             case "MovePlayer":
                 let tid = canvas.tokens.controlled[0].id;
                 let newarr = `${tid},${pass_arr[i]}`;
