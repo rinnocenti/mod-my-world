@@ -6,6 +6,10 @@
   "version": "0.4.4.5",
   "minimumCoreVersion": "0.6.2",
   "esmodules": [ "scripts/macrolongrest.js"],
+    "scripts": [],
+  "styles": [],
+  "url": "https://github.com/rinnocenti/mod-my-world",
+  "manifest": "https://raw.githubusercontent.com/rinnocenti/mod-my-world/master/module.json",
   "packs": [
     {
       "name": "factions",
@@ -169,4 +173,5 @@
       "entity": "Macro"
     }
   ]
+
 }
