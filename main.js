@@ -13,5 +13,7 @@ window.Innocenti = {
     SetDoor: TriggerChecks.SetDoor,
     Permission: TriggerChecks.Permission,
     MoveToken: TriggerChecks.MoveToken,
-    HitTarget: TriggerChecks.HitTarget
+    HitTarget: TriggerChecks.HitTarget,
+    Checks: TriggerChecks.Checks,
+    OpenDoor: TriggerChecks.OpenDoor
 };

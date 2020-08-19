@@ -91,6 +91,7 @@ export let Permission = async function (userid, tokenName, nivel = 2, flagScene,
 
 export let SetDoor = async function (idDoor, action = 'open', flagScene, tokenid, type) {
     if (CheckFlag(flagScene, tokenid, type) === true) return;
+
     if (action === 'open') {
         canvas.walls.get(idDoor).update({
             ds: 1
@@ -203,14 +204,14 @@ export let PassiveCheck = async function (dificult, sucessActions, failActions, 
         //Sucesso
         //Check();
         Actions(asucessActions);
-        ChatMessage.create({
+        await ChatMessage.create({
             user: ChatMessage.getWhisperRecipients("GM")[0],
             content: `${character.name} passou em um teste de ${skillName[1]} passiva.`,
             speaker: ChatMessage.speaker,
             whisper: ChatMessage.getWhisperRecipients("GM"),
             blind: true
         });
-        ChatMessage.create({
+        await ChatMessage.create({
             speaker: ChatMessage.getSpeaker(),
             flavor: `${skillName[1]} passiva`,
             content: "Parece que eu vi algo",
@@ -219,7 +220,7 @@ export let PassiveCheck = async function (dificult, sucessActions, failActions, 
     } else {
         //Falha
         Actions(afailActions);
-        ChatMessage.create({
+        await ChatMessage.create({
             user: ChatMessage.getWhisperRecipients("GM")[0],
             content: `${character.name} falhou em um teste de ${skillName[1]} passiva.`,
             speaker: ChatMessage.speaker,
@@ -227,6 +228,103 @@ export let PassiveCheck = async function (dificult, sucessActions, failActions, 
             blind: true
         });
     }
+}
+export let Checks = async function (skill, dificult, sucessActions, failActions, flags) {
+    if (game.user.isGM === true) return;
+    let asucessActions = sucessActions.split('.');
+    let afailActions = failActions.split('.');
+    if (flags !== undefined && flags !== '') {
+        // Setar Flag
+        SetFlag(...flags.split('.'));
+    }
+    let character = game.user.character;
+    if (Object.entries(game.dnd5e.config.skills).map(a => a[0]).includes(skill)) {
+        character.rollSkill(skill).then((result) => {
+            if (result.total >= dificult) {
+                Actions(asucessActions);
+            } else {
+                Actions(afailActions);
+            }
+        });
+    } else if (Object.entries(game.dnd5e.config.abilities).map(a => a[0]).includes(skill)) {
+        character.rollAbilityTest(skill).then((result) => {
+            if (result.total >= dificult) {
+                Actions(asucessActions);
+            } else {
+                Actions(afailActions);
+            }
+        })
+    }
+}
+///
+/// dificult =  Str.Dex
+/// doorKey = itemName
+///
+export let OpenDoor = async function (dificult, doorKey, sucessActions, failActions, flags){
+    if (game.user.isGM === true) return;
+    if (flags !== undefined && flags !== '') {
+        // Setar Flag
+        SetFlag(...flags.split('.'));
+    }
+    let asucessActions = sucessActions.split('.');
+    let afailActions = failActions.split('.');
+    let token = canvas.tokens.get(canvas.tokens.controlled[0].id);
+    let actor = game.actors.entities.find(a => a.name === token.actor.name);
+    let cd = dificult.split(".");
+    let cdStr = (cd[0] !== undefined && cd[0] !== "") ? parseInt(cd[0]) : 0;
+    let cdDex = (cd[1] !== undefined && cd[1] !== "") ? parseInt(cd[1]) : 0;
+    let d = new Dialog({
+        title: "Tentativa de Abrir Porta",
+        content: "<p>A Porta está Trancada como você deseja abrir a porta?</p>",
+        buttons: {
+            one: {
+                icon: '<i class="fas fa-fist-raised"></i>',
+                label: "Força",
+                callback: async () => {
+                    await game.user.character.rollAbilityTest(`str`).then((result) => {
+                        if (result.total >= cdStr) {
+                            Actions(asucessActions);
+                        } else {
+                            Actions(afailActions);
+                        }
+                    })
+                }
+            },
+            two: {
+                icon: '<i class="fas fa-user-lock"></i>',
+                label: "Ferramenta de ladrão",
+                callback: async () => {
+                    let item = actor.items.find(i => i.name === `Thieves’ Tools` || i.name === `Ferramenta de Ladino`);
+                    console.log(item);
+                    if (!item) return `/Whisper GM "O Item Thieves’ Tools nao foi encontrado"`;                    
+                    await MinorQOL.doCombinedRoll({ actor, item, event, token }).then((result) => {
+                        if (result.total >= cdDex) {
+                            Actions(asucessActions);
+                        } else {
+                            Actions(afailActions);
+                        }
+                    })
+                }
+            },
+            tree: {
+                icon: '<i class="fas fa-key"></i>',
+                label: "Chave",
+                callback: () => {
+                    if (doorKey !== undefined && doorKey !== "") {
+                        let item = actor.items.find(i => i.name === `${doorKey}`);
+                        if (doorKey !== null && item) {
+                            Actions(asucessActions);
+                        } else {
+                            Actions(afailActions);
+                        }
+                    } else { return `Não Tenho a Chave`; }
+                }
+            }
+        },
+        default: "one",
+        close: () => console.log("This always is logged no matter which option is chosen")
+    });
+    d.render(true);
 }
 
 function GetSkillName(skill) {

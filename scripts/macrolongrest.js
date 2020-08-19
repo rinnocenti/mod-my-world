@@ -1,5 +1,5 @@
 /*
- * Tipos de descanço longo
+ * Tipos de descanÃ§o longo
  * 0 = Acampamento perigoso/improvisado
  * 1 = Acampamento seguro
  * 2 = Quarto Improvisado/ Acampamento alugado
@@ -8,8 +8,7 @@
  * 5 = Quarto de Luxo
  */
 
-window.Innocenti = {};
-window.Innocenti.LongRest = async function (category = 0) {
+export let LongRest = async function (category = 0) {
     if (canvas.tokens.controlled.length === 0)
         return ui.notifications.error("select a token");
     for (let token of canvas.tokens.controlled) {
@@ -129,99 +128,4 @@ async function LongRestDialog({ actor } = {}) {
         });
         dlg.render(true);
     });
-}
-
-window.Innocenti.Check = function (condition, pass, trigger = null) {
-    let condition_arr = condition.split('.');
-    let pass_arr = pass.split('.');
-    //console.log(condition_arr);
-    //console.log(pass_arr);
-    for (let i = 0; i < condition_arr.length; i++) {
-        switch (condition_arr[i]) {
-            case "Reveal":
-                game.macros.entities.find(i => i.name === "Reveal").execute(pass_arr[i]);
-                break;
-            case "Hidde":
-                game.macros.entities.find(i => i.name === "Hidde").execute(pass_arr[i]);
-                break;
-            case "Permission":
-                game.macros.entities.find(i => i.name === "Permission").execute(pass_arr[i], game.user.id);
-                break;
-            case "Dialog":
-                game.macros.entities.find(i => i.name === "Dialog").execute(pass_arr[i], (pass_arr[i].slice(0, -1) + "D"), "each");
-                break;
-            case "PauseGame":
-                game.macros.entities.find(i => i.name === "PauseGame").execute(pass_arr[i]);
-                break;
-            case "HitTarget":
-                game.macros.entities.find(i => i.name === "HitTarget").execute(...pass_arr[i].split(','));
-                break;
-            case "Unlock":
-                game.macros.entities.find(i => i.name === "Unlock").execute(...pass_arr[i].split(','));
-                break;
-            case "Bubble":
-                game.macros.entities.find(i => i.name === "Bubble").execute(...pass_arr[i].split(','));
-                break;
-            case "ResetTrigger":
-                game.macros.entities.find(i => i.name === "ResetTrigger").execute(trigger);
-                break;
-            case "PlaySound":
-                game.macros.entities.find(i => i.name === "PlaySound").execute(...pass_arr[i].split(','));
-                break;
-            case "Move":
-                game.macros.entities.find(i => i.name === "Move").execute(...pass_arr[i].split(','));
-                break;
-            case "Teleport":
-                game.macros.entities.find(i => i.name === "TeleportToToken").execute(...pass_arr[i].split(','));
-                break;
-            case "MovePlayer":
-                let tid = canvas.tokens.controlled[0].id;
-                let newarr = `${tid},${pass_arr[i]}`;
-                //console.log(pass_arr);
-                game.macros.entities.find(i => i.name === "Move").execute(...newarr.split(','));
-                break;
-            case "ChatMessager":
-                game.macros.entities.find(i => i.name === "ChatMessager").execute(pass_arr[i]);
-                break;
-            default:
-        }
-    }
-}
-
-window.Innocenti.ResetTrigger = function (opt) {
-    let opts = opt.split('.');
-    let uniquekey = opts[0] + opts[1];
-    if (opts[2] !== undefined) {
-        let t_rest = parseInt(opts[2]);
-        setTimeout(function () {
-            for (let auser of game.users) {
-                if (auser.getFlag(`world`, `${uniquekey}`))
-                    auser.unsetFlag(`world`, `${uniquekey}`);
-            }            
-            ui.notifications.info("Removeu!");
-        }, (t_rest * 1000))
-    }
-}
-
-window.Innocenti.TriggerShot = function (opt) {
-    let opts = opt.split('.');
-    let escope = opts[1];
-    let uniquekey = opts[0] + opts[1];
-    let invalid = false;
-
-    if (escope === 'once') {
-        /// Acontece uma vez por jogo e ativa com qualquer jogador.
-        for (let auser of game.users) {
-            invalid = auser.getFlag(`world`, `${uniquekey}`) ? auser.getFlag(`world`, `${uniquekey}`) : false;
-            if (invalid !== false) return invalid;
-        }
-        if (invalid === false)
-            game.user.setFlag(`world`, `${uniquekey}`, true);
-    } else if (escope === "perPlayer") {
-        /// Acontece uma vez por jogo e ativa uma vez para cada personagem.
-        invalid = game.user.getFlag(`world`, `${uniquekey}`) ? game.user.getFlag(`world`, `${uniquekey}`) : false;
-        if (invalid === false)
-            game.user.setFlag(`world`, `${uniquekey}`, true);
-    }
-    return invalid;
 }
