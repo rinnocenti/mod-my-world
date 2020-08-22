@@ -15,5 +15,9 @@ window.Innocenti = {
     MoveToken: TriggerChecks.MoveToken,
     HitTarget: TriggerChecks.HitTarget,
     Checks: TriggerChecks.Checks,
-    OpenDoor: TriggerChecks.OpenDoor
+    OpenDoor: TriggerChecks.OpenDoor,
+    PressTable: TriggerChecks.PressTable,
+    SetSceneFlag: TriggerChecks.SetSceneFlag,
+    HitAllTargets: TriggerChecks.HitAllTargets,
+    MoveAllTokens: TriggerChecks.MoveAllTokens
 };
