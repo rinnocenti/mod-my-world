@@ -1,10 +1,15 @@
 import * as TriggerChecks from './scripts/automationTrigger.js';
 import { LongRest } from './scripts/macrolongrest.js';
 import { Visitar } from './scripts/visitar.js';
+import { FlagControl } from './scripts/flagsControl.js';
 import * as RegisterEncounter from './scripts/encounter.js';
+Hooks.once('init', function () {
+
+});
 window.Innocenti = {
     LongRest: LongRest,
     Visitar: Visitar,
+    FlagControl: FlagControl,
     RegisterEncounter: RegisterEncounter.RegisterEncounter,
     RollEncounter: RegisterEncounter.RollEncounter,
     CheckSetFlag: TriggerChecks.CheckSetFlag,
