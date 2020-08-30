@@ -26,6 +26,18 @@ export let Checks = async function (skill, dificult, sucessActions, failActions,
     }
 }
 
+export let PoolToken = function (controlid, tokenFlag, flags) {
+    if (flags != undefined) {
+        let aflags = flags.split('.');
+        if (CheckFlag(aflags[0], aflags[1], aflags[2]) === true) return;
+    }
+    if (!game.scenes.active.getFlag(`world`, `${tokenFlag}.${controlid}`)) {
+        let sceneflag = [`SetSceneFlag,${tokenFlag}`];
+        Actions(sceneflag);
+        AlertWhispGM(game.user.character.name, sceneflag);
+    }
+}
+
 export let PressTable = function (controlid, tokenid, chance, sucessActions, failActions, flags) {
     if (flags != undefined) {
         let aflags = flags.split('.');
@@ -45,6 +57,7 @@ export let PressTable = function (controlid, tokenid, chance, sucessActions, fai
     for (var key in persons) { count++; }
     let r = new Roll(`${chance}`);
     r.roll();
+    AlertWhispGM(game.user.character.name, r.result);
     //ui.notifications.warn(r.result);
     if (r.result > count) {
         //ui.notifications.info(asucessActions);
@@ -55,6 +68,7 @@ export let PressTable = function (controlid, tokenid, chance, sucessActions, fai
     }
     //ui.notifications.info(count);
 }
+
 export let Actions = function (actions) {
     for (let i = 0; i < actions.length; i++) {
         let act = actions[i].split(',');
@@ -81,11 +95,16 @@ export let Actions = function (actions) {
                 let action = act.shift();
                 actions[i] = `MoveToken,${canvas.tokens.controlled[0].name},${act.join()}`;
             }
+            if (act[0] === 'SetFlag') {
+                let action = act.shift();
+                actions[i] = `${action},${game.user.id},${act.join()}`;
+            }
             console.log(actions[i]);
             game.macros.entities.find(i => i.name === 'Actions').execute(...actions[i].split(','));
         }
     }
 }
+
 export let PassiveCheck = async function (dificult, sucessActions, failActions, flags) {
     let asucessActions = sucessActions.split('.');
     let afailActions = failActions.split('.');
@@ -124,15 +143,11 @@ export let PassiveCheck = async function (dificult, sucessActions, failActions, 
     }
 }
 
-///
-/// dificult =  Str.Dex
-/// doorKey = itemName
-///
 export let OpenDoor = async function (dificult, sucessActions, failActions, doorKey, flags) {
     if (game.user.isGM === true) return;
     if (flags !== undefined && flags !== '') {
         // Setar Flag
-        SetFlag(...flags.split('.'));
+        CheckSetFlag(...flags.split('.'));
     }
     let asucessActions = sucessActions.split('.');
     let afailActions = failActions.split('.');
@@ -196,56 +211,32 @@ export let OpenDoor = async function (dificult, sucessActions, failActions, door
     d.render(true);
 }
 
-export let HitTarget = async function (targetid, actorTrapName, itemTrapName, flagScene, tokenid, type) {
+export let HitTarget = async function (targetid, actorTrapName, itemTrapName, tokenTrapName, flagScene, tokenid, type) {
     if (CheckFlag(flagScene, tokenid, type) === true) return;
     let token = canvas.tokens.get(targetid);
-    let actor = token.actor;
-    let tactor = game.actors.entities.find(a => a.name === actorTrapName)
-    if (!tactor) return `/Whisper GM "DoTrap: Target token ${actorTrapName} not found"`
-    let item = tactor.items.find(i => i.name === itemTrapName)
-    if (!item) return `/Whisper GM "DoTrap: Item ${itemTrapName} not found"`
-    let oldTargets = game.user.targets;
-    game.user.targets = new Set();
-    game.user.targets.add(token);
-    Hooks.once("MinorQolRollComplete", () => {
-        ChatMessage.create({
-            user: ChatMessage.getWhisperRecipients("GM")[0],
-            content: "restoring targets",
-            whisper: ChatMessage.getWhisperRecipients("GM"),
-            blind: true
-        });
-        MinorQOL.forceRollDamage = false;
-        game.user.targets = oldTargets;
-    })
-    MinorQOL.forceRollDamage = true;
-    await MinorQOL.doCombinedRoll({ actor, item, event, token })
+    let tactor = game.actors.entities.find(a => a.name === actorTrapName);
+    if (!tactor) return `/Whisper GM "DoTrap: Target token ${actorTrapName} not found"`;
+    let item = tactor.items.find(i => i.name === itemTrapName);
+    if (!item) return `/Whisper GM "DoTrap: Item ${itemTrapName} not found"`;
+    let trapToken = canvas.tokens.placeables.find(t => t.name === tokenTrapName);
+    new MidiQOL.TrapWorkflow(tactor, item, [token], trapToken.center);
 }
 
-export let HitAllTargets = async function (sceneFlag, actorTrapName, itemTrapName, flagScene, tokenid, type) {
+export let HitAllTargets = async function (sceneFlag, actorTrapName, itemTrapName, tokenTrapName, flagScene, tokenid, type) {
     if (CheckFlag(flagScene, tokenid, type) === true) return;
-    let actor = game.actors.entities.find(a => a.name === actorTrapName);
-    if (!actor) return `/Whisper GM "DoTrap: Target token ${actorTrapName} not found"`;
-    let item = actor.items.find(i => i.name === itemTrapName);
+    let tactor = game.actors.entities.find(a => a.name === actorTrapName);
+    if (!tactor) return `/Whisper GM "DoTrap: Target token ${actorTrapName} not found"`;
+    let item = tactor.items.find(i => i.name === itemTrapName);
     if (!item) return `/Whisper GM "DoTrap: Item ${itemTrapName} not found"`;
-    let token = actor.token;
-    let oldTargets = game.user.targets;
-    game.user.targets = new Set();
-    let tokens = game.scenes.active.getFlag(`world`, `${sceneFlag}`);
-    for (let idt in tokens) {
-        game.user.targets.add(canvas.tokens.get(idt));
+    let trapToken = canvas.tokens.placeables.find(t => t.name === tokenTrapName);
+
+    let pool = game.scenes.active.getFlag(`world`, `${sceneFlag}`);
+    let tokens = [];
+    for (let idt in pool) {
+        let tk = canvas.tokens.placeables.find(t => t.id === idt);
+        tokens.push(tk);
     }
-    Hooks.once("MinorQolRollComplete", () => {
-        ChatMessage.create({
-            user: ChatMessage.getWhisperRecipients("GM")[0],
-            content: "restoring targets",
-            whisper: ChatMessage.getWhisperRecipients("GM"),
-            blind: true
-        });
-        MinorQOL.forceRollDamage = false;
-        game.user.targets = oldTargets;
-    });
-    MinorQOL.forceRollDamage = true;
-    await MinorQOL.doCombinedRoll({ actor, item, event, token });
+    new MidiQOL.TrapWorkflow(tactor, item, tokens, trapToken.center);
 }
 
 export let MoveAllTokens = async function (sceneFlag, xsquere, ysquere, flagScene, tokenid, type) {
@@ -282,6 +273,7 @@ export let MoveToken = async function (tokenName, xsquere, ysquere, flagScene, t
 
 export let Permission = async function (playerid, actorName, nivel = 2, flagScene, tokenid, type) {
     if (CheckFlag(flagScene, tokenid, type) === true) return;
+    console.log(actorName);
     if (typeof nivel !== 'number') nivel = parseInt(nivel);
     let actor = game.actors.entities.find(a => a.name === actorName);
     let newpermissions = duplicate(actor.data.permission);
@@ -349,7 +341,7 @@ export let PlaySound = async function (soundFile, extention, volume, playlist, s
 
 export let PauseGame = async function (flagScene, tokenid, type) {
     if (CheckFlag(flagScene, tokenid, type) === true) return;
-    if (game.paused == false)
+    if (game.paused === false)
         game.togglePause(true, true);
 }
 
@@ -366,7 +358,7 @@ export let Hidden = function (idHidden, hidden = false) {
     } catch (error) { }
 }
 
-export let SetFlag = function (flagScene, tokenid, type = 'perPlayer') {
+export let CheckSetFlag = function (flagScene, tokenid, type = 'perPlayer') {
     let invalid = false;
     if (type === 'once') {
         /// Acontece uma vez por jogo e ativa com qualquer jogador.
@@ -382,7 +374,6 @@ export let SetFlag = function (flagScene, tokenid, type = 'perPlayer') {
         game.user.setFlag(`world`, `${flagScene}.${tokenid}`, true);
     return invalid;
 }
-
 export let UnSetFlag = function (flagScene, tokenid, deep = false) {
     if (typeof deep !== 'boolean')
         deep = (deep !== 'false') ? true : false;
@@ -395,7 +386,16 @@ export let UnSetFlag = function (flagScene, tokenid, deep = false) {
         }
     }
 }
-
+export let SetFlag = function (userid, flagScene, tokenid, type = 'perPlayer') {
+    if (type === 'perPlayer') {
+        let auser = game.users.get(userid);
+        auser.setFlag(`world`, `${flagScene}.${tokenid}`, true);
+    }else {
+        for (let auser of game.users) {
+            auser.setFlag(`world`, `${flagScene}.${tokenid}`, true);
+        }
+    }
+}
 export let SetSceneFlag = function (controlledid, tokenid, remove) {
     if (remove !== undefined) {
         if (game.scenes.active.getFlag(`world`, `${tokenid}.${controlledid}`))
@@ -404,37 +404,35 @@ export let SetSceneFlag = function (controlledid, tokenid, remove) {
         game.scenes.active.setFlag(`world`, `${tokenid}.${controlledid}`, true);
     }
 }
+
 function GetSkillName(skill) {
     return Object.entries(game.dnd5e.config.skills).find(i => i[0] === skill);
 }
 
-function SetTargets(tokens) {
-    let oldTargets = game.user.targets;
-    game.user.targets = new Set();
-    if (typeof tokens !== 'object') {
-        game.user.targets.add(tokens);        
-    } else {
-        for (let idt in tokens) {
-            game.user.targets.add(canvas.tokens.get(idt));
-        }
-    }    
-    Hooks.once("MinorQolRollComplete", () => {
-        ChatMessage.create({
-            user: ChatMessage.getWhisperRecipients("GM")[0],
-            content: "restoring targets",
-            whisper: ChatMessage.getWhisperRecipients("GM"),
-            blind: true
-        });
-        MinorQOL.forceRollDamage = false;
-        game.user.targets = oldTargets;
-    });
-}
-
 function CheckFlag(flagScene, tokenid, type) {
     if (flagScene !== undefined && flagScene !== '') {
-        let set = SetFlag(flagScene, tokenid, type);
+        let set = CheckSetFlag(flagScene, tokenid, type);
         if (set !== false) return true;
         return false;
     }
     return false;
+}
+function ChangeName(idTrigger, newtext) {
+    try {
+        let entidade = canvas.drawings.get(idTrigger);
+        entidade.update({ text: `${newtext}`});
+    } catch { }
+    try {
+        let entidade = canvas.tokens.get(idTrigger);
+        entidade.update({ name: `${newtext}`});
+    } catch { }
+}
+function AlertWhispGM(charName, ckTest) {
+    ChatMessage.create({
+        user: ChatMessage.getWhisperRecipients("GM")[0],
+        content: `${charName} - check:  ${ckTest}.`,
+        speaker: ChatMessage.speaker,
+        whisper: ChatMessage.getWhisperRecipients("GM"),
+        blind: true
+    });
 }

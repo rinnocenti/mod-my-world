@@ -1,7 +1,13 @@
 import * as TriggerChecks from './scripts/automationTrigger.js';
 import { LongRest } from './scripts/macrolongrest.js';
+import { Visitar } from './scripts/visitar.js';
+import * as RegisterEncounter from './scripts/encounter.js';
 window.Innocenti = {
     LongRest: LongRest,
+    Visitar: Visitar,
+    RegisterEncounter: RegisterEncounter.RegisterEncounter,
+    RollEncounter: RegisterEncounter.RollEncounter,
+    CheckSetFlag: TriggerChecks.CheckSetFlag,
     SetFlag: TriggerChecks.SetFlag,
     UnSetFlag: TriggerChecks.UnSetFlag,
     PassiveCheck: TriggerChecks.PassiveCheck,
@@ -19,5 +25,6 @@ window.Innocenti = {
     PressTable: TriggerChecks.PressTable,
     SetSceneFlag: TriggerChecks.SetSceneFlag,
     HitAllTargets: TriggerChecks.HitAllTargets,
-    MoveAllTokens: TriggerChecks.MoveAllTokens
+    MoveAllTokens: TriggerChecks.MoveAllTokens,
+    PoolToken: TriggerChecks.PoolToken
 };
