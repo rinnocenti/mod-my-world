@@ -10,7 +10,7 @@ export class SetTrigger {
         if (flags !== undefined) {
             let flag = new SetTriggerFlag(this.user.id, this.token.id, ...flags.split('.'));
             if (flag.GetFlag()) return true;
-            flag.SetFlag();
+            flag.SetFlag();  
         }
         return false;
     }
@@ -34,21 +34,24 @@ export class SetTrigger {
             }
         }
     }
-    ExecuteActions(actions, targets, param) {
+    async ExecuteActions(actions, targets, param) {
         let multparam = (param.length < targets.length) ? Array(targets.length).fill(param[0]) : param;
         console.log(this);
         switch (actions) {
             case 'HitTarget':
-                this[actions](this.targets, ...multparam);
+                await this[actions](this.targets, ...multparam);
                 break;
             case 'PlaySound':
             case 'ResetFlag':
             case 'ResetMyFlag':
             case 'UnSetSceneFlag':
-                this[actions](...param);
+                await this[actions](...param);
+                break;
+            case 'None':
+            case '':
                 break;
             default:
-                this[actions](this.targets, multparam);
+                await this[actions](this.targets, multparam);
         }
     }
     async GMCheck(check) {
@@ -63,7 +66,7 @@ export class SetTrigger {
                 this.TargetTokens(targetName.split(','));
             else
                 this.targets = [this.token];
-            this.ExecuteActions(this.action, this.targets, this.args);
+            await this.ExecuteActions(this.action, this.targets, this.args);
         }
     }
     async GMacro(check) {
@@ -80,6 +83,27 @@ export class SetTrigger {
                 if (dr)
                     dr.update({ "text": newLabel });
             } catch (error) { }
+        }
+    }
+    async ChangeImage(target, newimage) {
+        if (target === undefined) return ui.notifications.error("Não há um alvo valido");
+        for (let i = 0; i < target.length; i++) {  
+            try {
+                let baseurl = `uploads-img/${newimage[i]}.png`;
+                if (!isUrlFound(`${baseurl}.webp`))
+                    if (!isUrlFound(baseurl)) return;
+                    else
+                        baseurl = baseurl.concat('.webp');
+                target[i].update({ "img": baseurl });
+            } catch (e) { }
+            try {
+                let baseurl = `assets/art/${newimage[i]}.png`;
+                if (!isUrlFound(`${baseurl}.webp`))
+                    if (!isUrlFound(baseurl)) return;
+                else
+                    baseurl = baseurl.concat('.webp');
+                canvas.tiles.get(target[i]).update({ "img": baseurl });
+            } catch (e) { }
         }
     }
     async Hidden(target, hidden) {
@@ -202,4 +226,18 @@ export class SetTrigger {
             if (deep !== false) flag.unsetFlag(`world`, `${scopeFlag}.${flagName}`);
         }
     }
+}
+async function isUrlFound(url) {
+  try {
+    const response = await fetch(url, {
+      method: 'HEAD',
+      cache: 'no-cache'
+    });
+
+    return response.status === 200;
+
+  } catch(error) {
+    // console.log(error);
+    return false;
+  }
 }
