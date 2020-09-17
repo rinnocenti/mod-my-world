@@ -5,7 +5,7 @@ export let RegisterEncounter = function (minutes) {
     //Registra um novo table
     let gameTimeid = game.Gametime.doEvery({ minutes: minutes }, CheckEncounter);
     onDisableScene(gameTimeid);
-    game.user.setFlag(`world`, `${EncounterSceneFlag}.${gameTimeid}`, true);
+    game.scenes.active.setFlag(`world`, `${EncounterSceneFlag}.${gameTimeid}`, true);
     game.Gametime.queue();
 }
 

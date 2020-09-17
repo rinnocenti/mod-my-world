@@ -1,16 +1,17 @@
 import { SetTriggerFlag } from './SetTriggerFlag.js';
+import { addTMFX, removeTMFX } from './tmpx.js';
 export class SetTrigger {
     constructor(userid, tokenid) {
         this.user = game.users.get(userid);
         this.token = canvas.tokens.get(tokenid);
         this.actor = game.actors.entities.find(a => a.name === this.token.actor.name);
-        //console.log(this);
+        console.log(this);
     }
     CheckFlag(flags) {
         if (flags !== undefined) {
-            let flag = new SetTriggerFlag(this.user.id, this.token.id, ...flags.split('.'));
+            let flag = new SetTriggerFlag(this.user.id, this.token.id, ...flags.split(','));
             if (flag.GetFlag()) return true;
-            flag.SetFlag();  
+            flag.SetFlag();
         }
         return false;
     }
@@ -42,6 +43,7 @@ export class SetTrigger {
                 await this[actions](this.targets, ...multparam);
                 break;
             case 'PlaySound':
+            case 'PlayTrack':
             case 'ResetFlag':
             case 'ResetMyFlag':
             case 'UnSetSceneFlag':
@@ -87,7 +89,7 @@ export class SetTrigger {
     }
     async ChangeImage(target, newimage) {
         if (target === undefined) return ui.notifications.error("Não há um alvo valido");
-        for (let i = 0; i < target.length; i++) {  
+        for (let i = 0; i < target.length; i++) {
             try {
                 let baseurl = `uploads-img/${newimage[i]}.png`;
                 if (!isUrlFound(`${baseurl}.webp`))
@@ -100,8 +102,8 @@ export class SetTrigger {
                 let baseurl = `assets/art/${newimage[i]}.png`;
                 if (!isUrlFound(`${baseurl}.webp`))
                     if (!isUrlFound(baseurl)) return;
-                else
-                    baseurl = baseurl.concat('.webp');
+                    else
+                        baseurl = baseurl.concat('.webp');
                 canvas.tiles.get(target[i]).update({ "img": baseurl });
             } catch (e) { }
         }
@@ -131,6 +133,80 @@ export class SetTrigger {
             tokenTrap = this.token;
         new MidiQOL.TrapWorkflow(actorTrap, item, targets, tokenTrap.center);
     }
+    async ItemGive(targets, itemName) {
+        if (targets === undefined) return ui.notifications.error("Não há um alvo valido");
+        if (this.user.isGM === true) return;
+        for (let i = 0; i < targets.length; i++) {
+            let item;
+            try {
+                item = game.items.getName(itemName[i]);
+            } catch (e) { }
+            if (item === undefined) {
+                await console.log('Entrou no Compendium');
+                let collection = itemName[i].split(',');
+                if (collection.length <= 1) return;
+                let comp = `${collection[0]}.${collection[1]}`;
+                item = await GetItemIdCompendium(comp, collection[2]);
+                try {
+                    await targets[i].actor.importItemFromCollection(comp, `${item._id}`);
+                } catch (error) { }
+            } else {
+                await targets[i].actor.createEmbeddedEntity("OwnedItem", item);
+            }
+            let message = `
+            <div class="dnd5e chat-card item-card" data-actor-id="${actor._id}" data-item-id="${item._id}">
+                <header class="card-header flexrow">
+                    <img src="${item.img}" title="${item.name}" width="36" height="36">
+                    <h3 class="item-name">${item.name}</h3>
+                </header>
+            </div>
+            `;
+            await setTimeout(function () {
+                canvas.tokens.selectObjects({});
+                ChatMessage.create({
+                    speaker: ChatMessage.getSpeaker({ token: targets[i], actor: targets[i].actor, scene: canvas.scene }),
+                    content: message,
+                    flavor: `Um item foi adicionado ao seu inventário`,
+                    type: CONST.CHAT_MESSAGE_TYPES.IC,
+                    blind: false
+                }, { chatBubble: false });
+            }, 500);
+        }
+    }
+    async ItemRemove(targets, itemName) {
+        if (targets === undefined) return ui.notifications.error("Não há um alvo valido");
+        if (this.user.isGM === true) return;
+        for (let i = 0; i < targets.length; i++) {
+            let actor = targets[i].actor;
+            let item = actor.items.find(a => a.name === itemName[i]);
+            let itemEb = actor.getEmbeddedEntity("OwnedItem", item.id);
+            if (itemEb.data.quantity > 1) {
+                let update = { _id: item.id, "data.quantity": itemEb.data.quantity - 1 };
+                await actor.updateEmbeddedEntity("OwnedItem", update);
+            } else {
+                await actor.items.find(a => a.name === itemName[i]).delete();
+            }
+            let message = `
+            <div class="dnd5e chat-card item-card" data-actor-id="${actor._id}" data-item-id="${item._id}">
+                <header class="card-header flexrow">
+                    <img src="${item.img}" title="${item.name}" width="36" height="36">
+                    <h3 class="item-name">${item.name}</h3>
+                </header>
+            </div>
+            `;
+            await setTimeout(function () {
+                canvas.tokens.selectObjects({});
+                ChatMessage.create({
+                    speaker: ChatMessage.getSpeaker({ token: targets[i], actor: targets[i].actor, scene: canvas.scene }),
+                    content: message,
+                    flavor: `Um item foi removido do seu inventário`,
+                    type: CONST.CHAT_MESSAGE_TYPES.IC,
+                    blind: false
+                }, { chatBubble: false });
+            }, 500);
+        }
+
+    }
     async MoveToken(target, sqmove) {
         let newX = 0;
         let newY = 0;
@@ -145,12 +221,31 @@ export class SetTrigger {
         }
         await canvas.pan(newX, newY);
     }
+    async MoveRelToken(target, sqmove) {
+        let newX = 0;
+        let newY = 0;
+        let g = canvas.scene.data.grid;
+        for (let i = 0; i < target.length; i++) {
+            if (typeof target[i] === 'string') return;
+            CanvasAnimation.terminateAnimation(`Token.${target[i].id}.animateMovement`);
+            let face = GetDirFace(target[i]);
+            if (!face) ui.notifications.error("Precisa do About-face instalado");
+            let squeres = sqmove[i].split(',');
+            squeres[0] = (face == 90) ? -1 * squeres[0] : squeres[0];
+            squeres[1] = (face == 180) ? -1 * squeres[1] : squeres[1];
+            newX = (target[i].data.x + (g * parseInt(squeres[0])));
+            newY = (target[i].data.y + (g * parseInt(squeres[1])));
+            await target[i].update({ x: newX, y: newY });
+        }
+        await canvas.pan(newX, newY);
+    }
     async PauseGame() {
         if (game.paused === false)
             game.togglePause(true, true);
     }
     async Permission(target, nivel = 'observer') {
         for (let i = 0; i < target.length; i++) {
+            if (this.user.isGM === true) return;
             if (target[i] === undefined) return ui.notifications.error(`${target[i]} não é um alvo valido`);
             let permission = (nivel[i] === 'owner') ? 3 : (nivel[i] === 'observer') ? 2 : (nivel[i] === 'limited') ? 1 : 0;
             let actor = game.actors.entities.find(a => a.name === target[i].actor.name);
@@ -171,6 +266,16 @@ export class SetTrigger {
             }, stoptime * 1000);
         }
     }
+    async PlayTrack(playlist, soundFile, stop = false) {
+        if (stop) {
+            var playl = game.playlists.find(track => track.data.name === soundFile);
+            if (playl.playing) {
+                playl.stopAll();
+            }
+        }
+        else
+            FurnacePlaylistQoL.PlaySound(playlist, soundFile);
+    }
     async ResetMyFlag(flagName, range, trigger) {
         let flag = new SetTriggerFlag(this.user.id, this.token.id, flagName, range, trigger);
         flag.ResetFlag();
@@ -181,16 +286,16 @@ export class SetTrigger {
     }
     async SetDoor(target, actions) {
         for (let i = 0; i < target.length; i++) {
-            if (actions[i] === 'open') canvas.walls.get(target[i]).update({ ds: 1 });
-            if (actions[i] === 'close') canvas.walls.get(target[i]).update({ ds: 0 });
-            if (actions[i] === 'show') canvas.walls.get(target[i]).update({ ds: 0, door: 1 });
+            if (actions[i] === 'open') await canvas.walls.get(target[i]).update({ ds: 1 });
+            if (actions[i] === 'close') await canvas.walls.get(target[i]).update({ ds: 0 });
+            if (actions[i] === 'show') await canvas.walls.get(target[i]).update({ door: 1 });
             if (actions[i] === 'toggle') {
                 let stat = (canvas.walls.get(target[i]).ds === 0) ? 1 : 0;
-                canvas.walls.get(target[i]).update({ ds: stat });
+                await canvas.walls.get(target[i]).update({ ds: stat });
             }
         }
     }
-    async Talk(target, message, language = 'common', bubble = true) {     
+    async Talk(target, message, language = 'common', bubble = true) {
         let oldLang = $(`#polyglot select`).val();
         canvas.tokens.selectObjects({});
         for (let i = 0; i < target.length; i++) {
@@ -199,22 +304,43 @@ export class SetTrigger {
                 message[i] = msg[0];
                 language = msg[1] || 'common';
                 bubble = msg[2] || true;
-            } 
+            }
             let lang = (language !== undefined && language !== '' && language !== 'custom') ? language : 'common';
             let bub = (bubble !== 'false') ? true : false;
-            
-            setTimeout(function () {
+
+            await setTimeout(function () {
+                canvas.tokens.selectObjects({});
                 $(`#polyglot select`).val(`${lang}`);
                 ChatMessage.create({
-                    speaker: { token: target[i], actor: target[i].actor, scene: canvas.scene },
+                    speaker: ChatMessage.getSpeaker({ token: target[i], actor: target[i].actor, scene: canvas.scene }),
                     content: `${message[i]}`,
                     type: CONST.CHAT_MESSAGE_TYPES.IC,
                     blind: false
-                }, { chatBubble: bub }); 
+                }, { chatBubble: bub });
                 $(`#polyglot select`).val(`${oldLang}`);
-            }, 1000);
-            
+            }, 500);
+
         }
+    }
+    async TMFX(target, filterid) {
+        let tile = false;
+        let objtile = [];
+        for (let i = 0; i < target.length; i++) {
+            if (typeof target[i] === 'string') {
+                tile = (canvas.tiles.get(target[i])) ? canvas.tiles.get(target[i]) : (canvas.drawings.get(target[i])) ? canvas.drawings.get(target[i]) : false;
+                if (tile === false) return;
+            } else {
+                tile = target[i];
+            }
+            addTMFX(tile, filterid[i]);
+            objtile.push({ tile: tile, filter: filterid[i] });
+        }
+        await setTimeout(await function () {
+            console.log('Removeu', objtile);
+            for (let i = 0; i < objtile.length; i++) {
+                removeTMFX(objtile[i].tile, objtile[i].filter);
+            }
+        }, 4 * 1000);
     }
     async UnSetSceneFlag(tokenName, flagName, deep = false, scopeFlag) {
         scopeFlag = (scopeFlag === undefined) ? SCOPE_FLAG : scopeFlag;
@@ -228,16 +354,26 @@ export class SetTrigger {
     }
 }
 async function isUrlFound(url) {
-  try {
-    const response = await fetch(url, {
-      method: 'HEAD',
-      cache: 'no-cache'
-    });
+    try {
+        const response = await fetch(url, {
+            method: 'HEAD',
+            cache: 'no-cache'
+        });
 
-    return response.status === 200;
+        return response.status === 200;
 
-  } catch(error) {
-    // console.log(error);
-    return false;
-  }
+    } catch (error) {
+        // console.log(error);
+        return false;
+    }
+}
+
+async function GetDirFace(token) {
+    return token.getFlag('about-face', 'position.facing');
+}
+
+async function GetItemIdCompendium(cpack, itemName) {
+    const pack = game.packs.get(`${cpack}`);
+    await pack.getIndex()
+    return await pack.index.find(e => e.name === `${itemName}`);
 }

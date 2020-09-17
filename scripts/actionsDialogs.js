@@ -1,11 +1,11 @@
 export
     class DialogActions {
     constructor(title,content) {
-        this.dialogBase = this.BaseDialogDoor(title, content);
+        this.dialogBase = this.BaseDialog(title, content);
     }
 
 
-    BaseDialogDoor(title, content) {
+    BaseDialog(title, content) {
         let base = {
             title: title,
             content: content,
@@ -14,7 +14,7 @@ export
         return base;
     }
 
-    async DialogButtons(count, callstr, calldex, callkey) {
+    async DialogDoorButtons(count, callstr, calldex, callkey) {
         let btnone = this.ButtonStranght(callstr);
         let btntwo = (count[1] !== undefined && count[1] === 'dex') ? this.ButtonTools(calldex) : this.ButtonKey(callkey);
         let btntree = this.ButtonKey(callkey);

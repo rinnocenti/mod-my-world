@@ -15,6 +15,17 @@ export class SingleActions extends SetTrigger {
     }
 }
 
+export class MultiActions extends SetTrigger {
+    constructor(userid, tokenid, actions, flags) {
+        super(userid, tokenid);
+        if (this.CheckFlag(flags)) return;
+        this.action = actions.split('; ');
+        for (let i = 0; i < this.action.length; i++) {
+            this.GMacro(this.action[i]);
+        }
+    }
+}
+
 //Checks `dex` 12 `Hidden.Yxyxya.true . PauseGame . Movetoken.xys,xxs.1,2`
 export class Checks extends SetTrigger {
     async Check(skill, dificult, sucess, fail, flags) {
@@ -96,8 +107,8 @@ export class OpenDoor extends SetTrigger {
         let item = this.actor.items.find(a => a.name === `Thieves’ Tools` || a.name === `Ferramenta de Ladino`);
         if (item) button[button.length] = 'dex';
         if (doorKey !== undefined && doorKey !== '') {
-            let dkey = this.actor.items.find(i => i.name === `${doorKey}`);
-            if (dkey) button[button.length] = 'key';
+            this.key = this.actor.items.find(i => i.name === `${doorKey}`);
+            if (this.key) button[button.length] = 'key';
         }
         let dialog = new DialogActions("Tentativa de Abrir Porta", "<p>A Porta está Trancada como você deseja abrir a porta?</p>");
         let callstr = async () => {
@@ -111,7 +122,7 @@ export class OpenDoor extends SetTrigger {
         };
         let calldex = async () => {
             await item.rollToolCheck().then((result) => {
-                if (result.total >= cdStr) {
+                if (result.total >= cdDex) {
                     this.GMacro(sucess);
                 } else {
                     this.GMacro(fail);
@@ -119,15 +130,10 @@ export class OpenDoor extends SetTrigger {
             });
         };
         let callkey = async () => {
-            let item = actor.items.find(i => i.name === `${doorKey}`);
-            if (item) {
-                this.GMacro(sucess);
-            } else {
-                this.GMacro(fail);
-            }
+            this.GMacro(sucess);
         };
-        await dialog.DialogButtons(button, callstr, calldex, callkey);
-
+        await dialog.DialogDoorButtons(button, callstr, calldex, callkey);
+        console.log(this);
         let d = new Dialog(dialog.dialogBase);
         d.render(true);
     }
