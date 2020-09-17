@@ -26,6 +26,18 @@ export class MultiActions extends SetTrigger {
     }
 }
 
+export class CheckItem extends SetTrigger{
+    async Check(itemName, sucess, fail, flags) {
+        if (this.CheckFlag(flags)) return;
+        let item = this.actor.items.find(a => a.name === itemName);
+        if (item) {
+            this.GMacro(sucess);
+        } else {
+            this.GMacro(fail);
+        }
+    }
+}
+
 //Checks `dex` 12 `Hidden.Yxyxya.true . PauseGame . Movetoken.xys,xxs.1,2`
 export class Checks extends SetTrigger {
     async Check(skill, dificult, sucess, fail, flags) {

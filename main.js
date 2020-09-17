@@ -16,6 +16,7 @@ window.Innocenti = {
     Checks: Actions.Checks,
     PassiveCheck: Actions.PassivePerception,
     OpenDoor: Actions.OpenDoor,
+    CheckItem: Actions.CheckItem,
     PoolCheck: Actions.PoolCheck,
     PoolFlags: Actions.PoolFlags
 };

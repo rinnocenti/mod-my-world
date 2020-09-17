@@ -76,6 +76,7 @@ export class SetTrigger {
     }
     async ChangeLebel(target, newLabel) {
         if (target === undefined) return ui.notifications.error("Não há um alvo valido");
+        //TODO: Mais de um com o mesmo nome corregir
         for (let i = 0; i < target.length; i++) {
             try {
                 canvas.drawings.get(target[i]).update({ "text": newLabel });
@@ -138,22 +139,21 @@ export class SetTrigger {
         if (this.user.isGM === true) return;
         for (let i = 0; i < targets.length; i++) {
             let item;
-            try {
-                item = game.items.getName(itemName[i]);
-            } catch (e) { }
-            if (item === undefined) {
-                await console.log('Entrou no Compendium');
-                let collection = itemName[i].split(',');
-                if (collection.length <= 1) return;
+            let actor = targets[i].actor;
+
+            let collection = itemName[i].split(',');
+            if (collection.length > 1) {
                 let comp = `${collection[0]}.${collection[1]}`;
-                item = await GetItemIdCompendium(comp, collection[2]);
+                let itemId = await GetItemIdCompendium(comp, collection[2]);
                 try {
-                    await targets[i].actor.importItemFromCollection(comp, `${item._id}`);
+                    item = await targets[i].actor.importItemFromCollection(comp, `${itemId._id}`);
                 } catch (error) { }
             } else {
-                await targets[i].actor.createEmbeddedEntity("OwnedItem", item);
+                item = await game.items.getName(itemName[i]);
             }
-            let message = `
+            if (item !== undefined) {
+                await actor.createEmbeddedEntity("OwnedItem", item);
+                let message = `
             <div class="dnd5e chat-card item-card" data-actor-id="${actor._id}" data-item-id="${item._id}">
                 <header class="card-header flexrow">
                     <img src="${item.img}" title="${item.name}" width="36" height="36">
@@ -161,16 +161,18 @@ export class SetTrigger {
                 </header>
             </div>
             `;
-            await setTimeout(function () {
-                canvas.tokens.selectObjects({});
-                ChatMessage.create({
-                    speaker: ChatMessage.getSpeaker({ token: targets[i], actor: targets[i].actor, scene: canvas.scene }),
-                    content: message,
-                    flavor: `Um item foi adicionado ao seu inventário`,
-                    type: CONST.CHAT_MESSAGE_TYPES.IC,
-                    blind: false
-                }, { chatBubble: false });
-            }, 500);
+                await setTimeout(function () {
+                    canvas.tokens.selectObjects({});
+                    ChatMessage.create({
+                        speaker: ChatMessage.getSpeaker({ token: targets[i], actor: targets[i].actor, scene: canvas.scene }),
+                        content: message,
+                        flavor: `Um item foi adicionado ao seu inventário`,
+                        type: CONST.CHAT_MESSAGE_TYPES.IC,
+                        blind: false
+                    }, { chatBubble: false });
+                }, 500);
+            }            
+            
         }
     }
     async ItemRemove(targets, itemName) {
@@ -336,7 +338,7 @@ export class SetTrigger {
             objtile.push({ tile: tile, filter: filterid[i] });
         }
         await setTimeout(await function () {
-            console.log('Removeu', objtile);
+
             for (let i = 0; i < objtile.length; i++) {
                 removeTMFX(objtile[i].tile, objtile[i].filter);
             }
