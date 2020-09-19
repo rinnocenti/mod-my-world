@@ -1,5 +1,5 @@
 const SHEETVISIT = "LootSheet5eNPC";
-export let Visitar = function () {
+export let Visitar = async function () {
     if (canvas.tokens.controlled.length === 0)
         return ui.notifications.error("select a token");
     const target = game.user.targets.values().next().value;
@@ -18,7 +18,12 @@ export let Visitar = function () {
             flavor: `<h3><img src=\"${imgtk}\" width=\"30px\" /></h3>`
         });
         //ui.notifications.info(targetToken.id)
-        if (game.user.id)
-            game.macros.getName("Actions").execute('Permission', game.user.id, targetToken.actor.name);
+        if (!game.user.isGM) {
+            let targactor = await game.actors.entities.find(a => a.id === targetToken.actor.id);
+            let perm = targactor.data.permission;
+            if (!perm[`${game.user.id}`]) {
+                await game.macros.getName("GMActions").execute(game.user.id, canvas.tokens.controlled[0].id, `Permission.observer.${targetToken.name}`);
+            }
+        }
     }
 }
