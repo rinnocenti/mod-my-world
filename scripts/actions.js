@@ -2,7 +2,7 @@ import { SetTriggerFlag } from './SetTriggerFlag.js';
 import { addTMFX, removeTMFX } from './tmpx.js';
 export class SetTrigger {
     constructor(userid, tokenid) {
-        this.user = game.users.get(userid);
+        this.user = (userid !== '' && userid !== 'None') ? game.users.get(userid) : game.user;
         this.token = canvas.tokens.get(tokenid);
         this.actor = game.actors.entities.find(a => a.name === this.token.actor.name);
         console.log(this);
@@ -37,7 +37,7 @@ export class SetTrigger {
     }
     async ExecuteActions(actions, targets, param) {
         let multparam = (param.length < targets.length) ? Array(targets.length).fill(param[0]) : param;
-        console.log(this);
+        //console.log(this);
         switch (actions) {
             case 'HitTarget':
                 await this[actions](this.targets, ...multparam);
@@ -72,7 +72,11 @@ export class SetTrigger {
         }
     }
     async GMacro(check) {
-        game.macros.entities.find(i => i.name === 'GMCheck').execute(this.user.id, this.token.id, check);
+        if (game.user.isGM === true) {
+            this.GMCheck(check)
+        } else {
+            game.socket.emit("module.mod-my-world", { userid: this.user.id, tokenid: this.token.id, check: check });
+        }
     }
     async ChangeLebel(target, newLabel) {
         if (target === undefined) return ui.notifications.error("Não há um alvo valido");
@@ -171,8 +175,8 @@ export class SetTrigger {
                         blind: false
                     }, { chatBubble: false });
                 }, 500);
-            }            
-            
+            }
+
         }
     }
     async ItemRemove(targets, itemName) {

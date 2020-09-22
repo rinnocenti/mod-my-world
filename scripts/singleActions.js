@@ -26,7 +26,7 @@ export class MultiActions extends SetTrigger {
     }
 }
 
-export class CheckItem extends SetTrigger{
+export class CheckItem extends SetTrigger {
     async Check(itemName, sucess, fail, flags) {
         if (this.CheckFlag(flags)) return;
         let item = this.actor.items.find(a => a.name === itemName);
@@ -77,7 +77,7 @@ export class PassivePerception extends SetTrigger {
         if (this.CheckFlag(flags)) return;
         let skillPasssive = this.actor.data.data.skills['prc'].passive;
         if (skillPasssive >= parseInt(dificult)) {
-            this.GMacro(sucess);
+            await this.GMacro(sucess);
             await ChatMessage.create({
                 user: ChatMessage.getWhisperRecipients("GM")[0],
                 content: `${this.token.name} passou em um teste de "Percepção Passiva".`,
@@ -94,7 +94,7 @@ export class PassivePerception extends SetTrigger {
                 }, { chatBubble: true });
             }
         } else {
-            this.GMacro(fail);
+            await this.GMacro(fail);
             await ChatMessage.create({
                 user: ChatMessage.getWhisperRecipients("GM")[0],
                 content: `${this.token.name} falhou em um teste de Percepção passiva.`,
@@ -181,24 +181,20 @@ export class PoolFlags {
         this.remove = (remove !== undefined && remove !== false) ? true : false;
     }
     async AddPool() {
-        if (this.remove === false) {
-            for (let i = 0; i < this.poolname.length; i++) {
-                try {
-                    if (!game.scenes.active.getFlag(`world`, `${this.poolname[i]}.${this.tokenid}`))
-                        game.scenes.active.setFlag(`world`, `${this.poolname[i]}.${this.tokenid}`, true);
-                } catch (e) { }
-                await AlertWhispGM(this.tokenid, `join into pool ${this.poolname[i]}`);
-            }
+        for (let i = 0; i < this.poolname.length; i++) {
+            try {
+                if (!game.scenes.active.getFlag(`world`, `${this.poolname[i]}.${this.tokenid}`))
+                    game.scenes.active.setFlag(`world`, `${this.poolname[i]}.${this.tokenid}`, true);
+            } catch (e) { }
+            await AlertWhispGM(this.tokenid, `join into pool ${this.poolname[i]}`);
         }
     }
     async RemovePool() {
-        if (this.remove === true) {
-            for (let i = 0; i < this.poolname.length; i++) {
-                try {
-                    game.scenes.active.unsetFlag(`world`, `${this.poolname[i]}.-=${this.tokenid}`);
-                } catch (e) { }
-                await AlertWhispGM(this.tokenid, `get out pool ${this.poolname[i]}`);
-            }
+        for (let i = 0; i < this.poolname.length; i++) {
+            try {
+                game.scenes.active.unsetFlag(`world`, `${this.poolname[i]}.-=${this.tokenid}`);
+            } catch (e) { }
+            await AlertWhispGM(this.tokenid, `get out pool ${this.poolname[i]}`);
         }
     }
 

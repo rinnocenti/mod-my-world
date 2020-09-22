@@ -8,6 +8,7 @@
   "esmodules": [ "scripts/macrolongrest.js", "main.js" ],
   "scripts": [],
   "styles": [],
+  "socket": true,
   "url": "https://github.com/rinnocenti/mod-my-world",
   "manifest": "https://raw.githubusercontent.com/rinnocenti/mod-my-world/master/module.json",
   "download": "https://github.com/rinnocenti/mod-my-world/archive/0.6.4.zip",
